@@ -218,32 +218,47 @@
     if (!form) {
       return;
     }
-    const firestoreMode = form.dataset.firestoreMode === 'true';
 
+    const firestoreMode = form.dataset.firestoreMode === 'true';
     const scoreInput = document.getElementById('score');
     const scoreValue = document.getElementById('score-value');
     const ratingNotice = document.getElementById('rating-notice');
     const myRatings = document.getElementById('my-ratings');
     const communityRatings = document.getElementById('community-ratings');
     const searchInput = document.getElementById('title-search');
-    const searchResults = document.getElementById('search-results');
+    const searchResultsList = document.getElementById('search-results-list');
+    const searchResultsStatus = document.getElementById('search-results-status');
     const customTitleInput = document.getElementById('custom-title');
 
     let pendingSearchToken = 0;
     let searchDebounce;
+    let latestResults = [];
+
+    function setSelectedResult(item) {
+      window.__RYW_SELECTED_TMDB_ITEM = item || null;
+      if (!searchResultsList) {
+        return;
+      }
+      searchResultsList.querySelectorAll('.search-result-item').forEach((button) => {
+        const id = Number(button.dataset.tmdbId || 0);
+        button.classList.toggle('active', Boolean(item && item.id === id));
+      });
+    }
 
     function getSelectedTitle() {
       if (customTitleInput && customTitleInput.value.trim()) {
         return customTitleInput.value.trim();
       }
-      if (searchResults && searchResults.value) {
-        return searchResults.value;
+      if (window.__RYW_SELECTED_TMDB_ITEM) {
+        return window.__RYW_SELECTED_TMDB_ITEM.title || window.__RYW_SELECTED_TMDB_ITEM.name || '';
       }
       return '';
     }
 
     function renderSearchStatus(message) {
-      searchResults.innerHTML = `<option value="">${message}</option>`;
+      if (searchResultsStatus) {
+        searchResultsStatus.textContent = message;
+      }
     }
 
     function optionLabelForTmdb(item) {
@@ -254,32 +269,60 @@
       return year ? `${title} (${mediaType}, ${year})` : `${title} (${mediaType})`;
     }
 
-    async function fetchTmdbResults(query, token) {
-      const results = (await tmdbSearchMulti(query)).filter(
-        (item) => item.media_type === 'movie' || item.media_type === 'tv'
-      );
+    function renderResultsList(results) {
+      if (!searchResultsList) {
+        return;
+      }
+      if (!results.length) {
+        searchResultsList.innerHTML = '';
+        return;
+      }
 
+      searchResultsList.innerHTML = results
+        .map((item, idx) => {
+          const title = item.title || item.name || '';
+          const media = item.media_type || '';
+          const poster = item.poster_path || '';
+          const label = optionLabelForTmdb(item).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          return `<button class="search-result-item" type="button" data-index="${idx}" data-tmdb-id="${item.id || ''}" data-media-type="${media}" data-poster-path="${poster}" data-title="${title.replace(/"/g, '&quot;')}">${label}</button>`;
+        })
+        .join('');
+    }
+
+    async function fetchTmdbResults(query, token) {
+      const response = await fetch(
+        tmdbUrl('/search/multi', {
+          query,
+          include_adult: 'false',
+          language: 'en-US',
+          page: '1',
+        })
+      );
+      if (!response.ok) {
+        throw new Error(`TMDB search failed (${response.status})`);
+      }
+      const payload = await response.json();
       if (token !== pendingSearchToken) {
         return;
       }
 
-      if (!results.length) {
+      latestResults = (payload.results || []).filter(
+        (item) => item.media_type === 'movie' || item.media_type === 'tv'
+      );
+      window.__RYW_TMDB_RESULTS = latestResults;
+      setSelectedResult(null);
+
+      if (!latestResults.length) {
+        renderResultsList([]);
         renderSearchStatus('No TMDB matches found. Use custom title below.');
         return;
       }
 
-      searchResults.innerHTML = results
-        .slice(0, 10)
-        .map((item) => {
-          const value = item.title || item.name || '';
-          const label = optionLabelForTmdb(item).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-          const id = item.id || '';
-          const media = item.media_type || '';
-          const posterPath = item.poster_path || '';
-          return `<option value="${value}" data-tmdb-id="${id}" data-media-type="${media}" data-poster-path="${posterPath}">${label}</option>`;
-        })
-        .join('');
-      searchResults.selectedIndex = 0;
+      renderResultsList(latestResults.slice(0, 10));
+      const first = latestResults[0];
+      setSelectedResult(first);
+      window.dispatchEvent(new CustomEvent('ryw:selected-item-changed', { detail: first }));
+      renderSearchStatus('Click a title below to select it.');
     }
 
     function renderRatings() {
@@ -326,10 +369,16 @@
       }
 
       if (!query) {
+        latestResults = [];
+        window.__RYW_TMDB_RESULTS = [];
+        setSelectedResult(null);
+        renderResultsList([]);
         renderSearchStatus('Type to search TMDB...');
         return;
       }
 
+      setSelectedResult(null);
+      renderResultsList([]);
       renderSearchStatus('Searching TMDB...');
       searchDebounce = setTimeout(async () => {
         try {
@@ -351,33 +400,49 @@
 
     if (!firestoreMode) {
       myRatings.addEventListener('click', (event) => {
-      const editId = event.target.getAttribute('data-edit-rating');
-      const deleteId = event.target.getAttribute('data-delete-rating');
+        const editId = event.target.getAttribute('data-edit-rating');
+        const deleteId = event.target.getAttribute('data-delete-rating');
 
-      if (editId) {
-        const ratings = getRatings();
-        const rating = ratings.find((item) => item.id === editId);
-        if (!rating) {
-          return;
+        if (editId) {
+          const ratings = getRatings();
+          const rating = ratings.find((item) => item.id === editId);
+          if (!rating) {
+            return;
+          }
+          const updated = window.prompt('Edit your comment:', rating.comment || '');
+          if (updated === null) {
+            return;
+          }
+          upsertRating({ ...rating, comment: updated.trim() });
+          showMessage(ratingNotice, 'Comment updated.', true);
+          renderRatings();
         }
-        const updated = window.prompt('Edit your comment:', rating.comment || '');
-        if (updated === null) {
-          return;
-        }
-        upsertRating({ ...rating, comment: updated.trim() });
-        showMessage(ratingNotice, 'Comment updated.', true);
-        renderRatings();
-      }
 
-      if (deleteId) {
-        const confirmed = window.confirm('Delete this rating?');
-        if (!confirmed) {
+        if (deleteId) {
+          const confirmed = window.confirm('Delete this rating?');
+          if (!confirmed) {
+            return;
+          }
+          deleteRating(deleteId);
+          showMessage(ratingNotice, 'Rating deleted.', true);
+          renderRatings();
+        }
+      });
+    }
+
+    if (searchResultsList) {
+      searchResultsList.addEventListener('click', (event) => {
+        const button = event.target.closest('.search-result-item');
+        if (!button) {
           return;
         }
-        deleteRating(deleteId);
-        showMessage(ratingNotice, 'Rating deleted.', true);
-        renderRatings();
-      }
+        const idx = Number(button.dataset.index || -1);
+        const picked = latestResults[idx] || null;
+        if (!picked) {
+          return;
+        }
+        setSelectedResult(picked);
+        window.dispatchEvent(new CustomEvent('ryw:selected-item-changed', { detail: picked }));
       });
     }
 
@@ -392,49 +457,53 @@
       }
     });
 
-    searchResults.addEventListener('change', () => {
-      if (!customTitleInput.value.trim()) {
-        customTitleInput.placeholder = `Selected: ${searchResults.value}`;
-      }
-    });
+    if (customTitleInput) {
+      customTitleInput.addEventListener('input', () => {
+        if (customTitleInput.value.trim()) {
+          setSelectedResult(null);
+        }
+      });
+    }
 
     if (!firestoreMode) {
       form.addEventListener('submit', (event) => {
-      event.preventDefault();
-      const currentUser = getCurrentUser();
+        event.preventDefault();
+        const currentUser = getCurrentUser();
 
-      if (!currentUser) {
-        showMessage(ratingNotice, 'Please create or log into an account on Home before saving scores.', false);
-        return;
-      }
+        if (!currentUser) {
+          showMessage(ratingNotice, 'Please create or log into an account on Home before saving scores.', false);
+          return;
+        }
 
-      const formData = new FormData(form);
-      const title = getSelectedTitle();
-      const type = String(formData.get('type') || '').trim();
-      const score = Number(formData.get('score') || 0);
-      const comment = String(formData.get('comment') || '').trim();
+        const formData = new FormData(form);
+        const title = getSelectedTitle();
+        const type = String(formData.get('type') || '').trim();
+        const score = Number(formData.get('score') || 0);
+        const comment = String(formData.get('comment') || '').trim();
 
-      if (!title) {
-        showMessage(ratingNotice, 'Choose a search result or enter a custom title.', false);
-        return;
-      }
+        if (!title) {
+          showMessage(ratingNotice, 'Choose a search result or enter a custom title.', false);
+          return;
+        }
 
-      upsertRating({
-        id: `${currentUser}-${Date.now()}`,
-        username: currentUser,
-        title,
-        type,
-        score,
-        comment,
-        createdAt: new Date().toISOString(),
-      });
+        upsertRating({
+          id: `${currentUser}-${Date.now()}`,
+          username: currentUser,
+          title,
+          type,
+          score,
+          comment,
+          createdAt: new Date().toISOString(),
+        });
 
-      form.reset();
-      scoreInput.value = '2.5';
-      renderScoreValue();
-      renderSearchStatus('Type to search TMDB...');
-      showMessage(ratingNotice, 'Rating saved to your account.', true);
-      renderRatings();
+        form.reset();
+        scoreInput.value = '2.5';
+        renderScoreValue();
+        setSelectedResult(null);
+        renderResultsList([]);
+        renderSearchStatus('Type to search TMDB...');
+        showMessage(ratingNotice, 'Rating saved to your account.', true);
+        renderRatings();
       });
     }
 
@@ -497,7 +566,9 @@
 
       const friends = getFriendsForUser(currentUser).filter((name) => Boolean(users[name]));
       friendList.innerHTML = friends.length
-        ? friends.map((name) => `<li>${name}</li>`).join('')
+        ? friends
+            .map((name) => `<li>${name} <a class="inline-link" href="library.html?user=${encodeURIComponent(name)}">View library</a></li>`)
+            .join('')
         : '<li>No friends added yet.</li>';
 
       const ratings = getRatings().filter((rating) => friends.includes(rating.username));

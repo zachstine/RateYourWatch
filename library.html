@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RateYourWatch | Library</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="site-wrap">
+    <header class="topbar">
+      <a class="brand" href="index.html">RateYourWatch</a>
+      <nav class="nav-links" aria-label="Main">
+        <a href="index.html">Home</a>
+        <a href="rate.html">Rate</a>
+        <a href="friends.html">Friends</a>
+        <a href="next-watch.html">Next Watch</a>
+        <a class="active" href="library.html">Library</a>
+      </nav>
+    </header>
+
+    <main class="single-column two-cards">
+      <section class="card">
+        <h1>Library</h1>
+        <p class="muted" id="library-heading">All saved titles</p>
+        <div class="library-filters">
+          <label>
+            Type
+            <select id="library-filter-type">
+              <option value="all">All</option>
+              <option value="Movie">Movie</option>
+              <option value="TV Show">TV Show</option>
+            </select>
+          </label>
+          <label>
+            Minimum rating
+            <select id="library-filter-rating">
+              <option value="0">0+</option>
+              <option value="2">2+</option>
+              <option value="3">3+</option>
+              <option value="4">4+</option>
+              <option value="4.5">4.5+</option>
+            </select>
+          </label>
+          <label>
+            Sort
+            <select id="library-filter-sort">
+              <option value="newest">Newest</option>
+              <option value="highest">Highest rating</option>
+              <option value="title">Title A-Z</option>
+            </select>
+          </label>
+        </div>
+        <p id="library-notice" class="notice"></p>
+      </section>
+
+      <section class="card">
+        <h2>Titles</h2>
+        <ul id="library-list" class="feed-list"></ul>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="firebase-init.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

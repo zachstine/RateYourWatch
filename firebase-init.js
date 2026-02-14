@@ -17,6 +17,7 @@ import {
   doc,
   updateDoc,
   deleteDoc,
+  setDoc,
 } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js';
 
 console.log('[firebase-init] script loaded');
@@ -31,14 +32,48 @@ const firebaseConfig = {
   measurementId: 'G-FNTK2TKE9T',
 };
 
-function hasFirebaseConfig(config) {
-  return config.apiKey && config.projectId;
-}
+const CURRENT_USER_KEY = 'ryw_current_user';
+const FRIENDS_KEY = 'ryw_friends';
 
 let db;
 let auth;
 let currentUser;
 let selectedItem = null;
+
+function hasFirebaseConfig(config) {
+  return config.apiKey && config.projectId;
+}
+
+function getCurrentAppUsername() {
+  return localStorage.getItem(CURRENT_USER_KEY) || 'guest';
+}
+
+function getFriendMap() {
+  try {
+    return JSON.parse(localStorage.getItem(FRIENDS_KEY) || '{}');
+  } catch (error) {
+    return {};
+  }
+}
+
+async function ensureAccountRecord() {
+  const appUsername = getCurrentAppUsername();
+  if (!db || !currentUser || !appUsername) {
+    return;
+  }
+
+  await setDoc(
+    doc(db, 'accounts', appUsername),
+    {
+      appUsername,
+      uid: currentUser.uid,
+      updatedAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+  console.log('[firebase-init] account synced', appUsername);
+}
 
 export async function saveRating({ tmdbId, title, mediaType, rating, notes, posterUrl }) {
   if (!db || !currentUser) {
@@ -47,6 +82,7 @@ export async function saveRating({ tmdbId, title, mediaType, rating, notes, post
 
   const payload = {
     uid: currentUser.uid,
+    appUsername: getCurrentAppUsername(),
     tmdbId: tmdbId || null,
     title: title || 'Untitled',
     mediaType: mediaType || 'Movie',
@@ -82,12 +118,7 @@ export async function loadRatings() {
     throw new Error('Firebase not ready or user not signed in yet.');
   }
 
-  const ratingsQuery = query(
-    collection(db, 'ratings'),
-    orderBy('createdAt', 'desc'),
-    limit(50)
-  );
-
+  const ratingsQuery = query(collection(db, 'ratings'), orderBy('createdAt', 'desc'), limit(100));
   const snapshot = await getDocs(ratingsQuery);
   const rows = snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
   console.log('[firebase-init] load success', rows.length, 'rows');
@@ -129,26 +160,18 @@ function selectedTitleFromUI() {
   return '';
 }
 
-function syncSelectedItemFromDropdown() {
-  const select = document.getElementById('search-results');
-  if (!select || !select.selectedOptions.length) {
+function syncSelectedItemFromEvent(detail) {
+  if (!detail) {
     selectedItem = null;
     return;
   }
 
-  const option = select.selectedOptions[0];
-  const tmdbId = option.getAttribute('data-tmdb-id');
-  const title = option.value || option.textContent || '';
-  const mediaTypeRaw = option.getAttribute('data-media-type') || '';
-  const posterPath = option.getAttribute('data-poster-path') || '';
-
   selectedItem = {
-    tmdbId: tmdbId ? Number(tmdbId) : null,
-    title,
-    mediaType: mediaTypeRaw === 'tv' ? 'TV Show' : mediaTypeRaw === 'movie' ? 'Movie' : 'Movie',
-    posterUrl: posterPath ? `https://image.tmdb.org/t/p/w500${posterPath}` : '',
+    tmdbId: detail.id ? Number(detail.id) : null,
+    title: detail.title || detail.name || '',
+    mediaType: detail.media_type === 'tv' ? 'TV Show' : 'Movie',
+    posterUrl: detail.poster_path ? `https://image.tmdb.org/t/p/w500${detail.poster_path}` : '',
   };
-
   console.log('[firebase-init] selected item', selectedItem);
 }
 
@@ -161,13 +184,9 @@ async function wireFirestoreRatePage() {
     return;
   }
 
-  const searchResults = document.getElementById('search-results');
-  if (searchResults) {
-    searchResults.addEventListener('change', syncSelectedItemFromDropdown);
-    searchResults.addEventListener('click', () => {
-      requestAnimationFrame(syncSelectedItemFromDropdown);
-    });
-  }
+  window.addEventListener('ryw:selected-item-changed', (event) => {
+    syncSelectedItemFromEvent(event.detail);
+  });
 
   const searchInput = document.getElementById('title-search');
   if (searchInput) {
@@ -188,7 +207,8 @@ async function wireFirestoreRatePage() {
   const refresh = async () => {
     try {
       const rows = await loadRatings();
-      renderRatingsList(rows.filter((row) => row.uid === currentUser.uid));
+      const mine = rows.filter((row) => row.appUsername === getCurrentAppUsername());
+      renderRatingsList(mine);
     } catch (error) {
       console.error('[firebase-init] load fail', error);
       if (notice) {
@@ -252,9 +272,6 @@ async function wireFirestoreRatePage() {
 
     try {
       const data = new FormData(form);
-      if (!selectedItem) {
-        syncSelectedItemFromDropdown();
-      }
       const customTitle = selectedTitleFromUI();
       const title = customTitle || (selectedItem && selectedItem.title) || '';
       if (!title) {
@@ -290,6 +307,88 @@ async function wireFirestoreRatePage() {
   await refresh();
 }
 
+async function wireLibraryPage() {
+  const list = document.getElementById('library-list');
+  if (!list) {
+    return;
+  }
+
+  const notice = document.getElementById('library-notice');
+  const heading = document.getElementById('library-heading');
+  const filterType = document.getElementById('library-filter-type');
+  const filterRating = document.getElementById('library-filter-rating');
+  const filterSort = document.getElementById('library-filter-sort');
+
+  const params = new URLSearchParams(window.location.search);
+  const requestedUser = params.get('user');
+  const viewer = getCurrentAppUsername();
+
+  const canViewRequested = () => {
+    if (!requestedUser || requestedUser === viewer) {
+      return true;
+    }
+    const map = getFriendMap();
+    return (map[viewer] || []).includes(requestedUser);
+  };
+
+  if (!canViewRequested()) {
+    notice.textContent = 'You can only view your own library or a connected friend library.';
+    notice.className = 'notice bad';
+    list.innerHTML = '<li>Access denied.</li>';
+    return;
+  }
+
+  const libraryOwner = requestedUser || viewer;
+  if (heading) {
+    heading.textContent = libraryOwner === viewer ? 'Your saved titles' : `${libraryOwner}'s saved titles`;
+  }
+
+  const render = async () => {
+    try {
+      const rows = await loadRatings();
+      let items = rows.filter((row) => row.appUsername === libraryOwner);
+
+      const typeValue = filterType.value;
+      const minRating = Number(filterRating.value || 0);
+      const sortValue = filterSort.value;
+
+      if (typeValue !== 'all') {
+        items = items.filter((row) => (row.mediaType || '') === typeValue);
+      }
+      items = items.filter((row) => Number(row.rating || 0) >= minRating);
+
+      if (sortValue === 'highest') {
+        items.sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
+      } else if (sortValue === 'title') {
+        items.sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')));
+      }
+
+      if (!items.length) {
+        list.innerHTML = '<li>No library titles found for this filter.</li>';
+        notice.textContent = '';
+        return;
+      }
+
+      list.innerHTML = items
+        .map((row) => `<li><strong>${row.title}</strong> (${row.mediaType || 'Movie'}) - ${Number(row.rating || 0).toFixed(1)}/5${row.notes ? ` - ${row.notes}` : ''}</li>`)
+        .join('');
+      notice.textContent = `Loaded ${items.length} title(s).`;
+      notice.className = 'notice good';
+    } catch (error) {
+      console.error('[firebase-init] library load fail', error);
+      notice.textContent = 'Library load failed.';
+      notice.className = 'notice bad';
+      list.innerHTML = '<li>Unable to load library right now.</li>';
+    }
+  };
+
+  [filterType, filterRating, filterSort].forEach((el) => {
+    el.addEventListener('change', render);
+  });
+
+  await render();
+}
+
 async function bootFirebase() {
   if (!hasFirebaseConfig(firebaseConfig)) {
     console.warn('[firebase-init] missing firebaseConfig values. Paste config in firebase-init.js');
@@ -321,14 +420,17 @@ async function bootFirebase() {
     return;
   }
 
-  onAuthStateChanged(auth, (user) => {
+  onAuthStateChanged(auth, async (user) => {
     if (user) {
       currentUser = user;
       console.log('[firebase-init] auth state user', user.uid);
+      await ensureAccountRecord();
     }
   });
 
+  await ensureAccountRecord();
   await wireFirestoreRatePage();
+  await wireLibraryPage();
 }
 
 window.__FIREBASE_RATING_MODE__ = true;
