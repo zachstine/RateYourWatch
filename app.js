@@ -3,22 +3,11 @@
   const CURRENT_USER_KEY = 'ryw_current_user';
   const RATINGS_KEY = 'ryw_ratings';
   const FRIENDS_KEY = 'ryw_friends';
-  const MOVIE_CATALOG = [
-    'Dune: Part Two',
-    'Interstellar',
-    'Past Lives',
-    'The Bear',
-    'Andor',
-    'Shogun',
-    'Severance',
-    'The Last of Us',
-    'The Holdovers',
-    'Arrival',
-    'The Batman',
-    'Oppenheimer',
-    'Poor Things',
-    'The Penguin',
-  ];
+
+  const TMDB_API_KEY = '32335edf13a294b190f646c64e57bdf4';
+  const TMDB_READ_TOKEN =
+    'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIzMjMzNWVkZjEzYTI5NGIxOTBmNjQ2YzY0ZTU3YmRmNCIsIm5iZiI6MTc3MTA0NTQ4OC40MDcsInN1YiI6IjY5OTAwMjcwNDRjZjg1NzJkMGUyMWRjZCIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.WAAYG_rO6nk7J5srMuP11IaUvr3PB3Ka6Lg-Qo2duEE';
+  const TMDB_SEARCH_ENDPOINT = 'https://api.themoviedb.org/3/search/multi';
 
   function readJSON(key, fallback) {
     try {
@@ -200,6 +189,9 @@
     const searchResults = document.getElementById('search-results');
     const customTitleInput = document.getElementById('custom-title');
 
+    let pendingSearchToken = 0;
+    let searchDebounce;
+
     function getSelectedTitle() {
       if (customTitleInput && customTitleInput.value.trim()) {
         return customTitleInput.value.trim();
@@ -210,20 +202,64 @@
       return '';
     }
 
-    function renderSearchResults(query) {
+    function renderSearchStatus(message) {
       if (!searchResults) {
         return;
       }
-      const term = query.trim().toLowerCase();
-      const filtered = MOVIE_CATALOG.filter((title) => title.toLowerCase().includes(term));
-      const results = term ? filtered : MOVIE_CATALOG;
-      searchResults.innerHTML = results
-        .slice(0, 8)
-        .map((title) => `<option value="${title}">${title}</option>`)
-        .join('');
-      if (searchResults.options.length > 0) {
-        searchResults.selectedIndex = 0;
+      searchResults.innerHTML = `<option value="">${message}</option>`;
+    }
+
+    function optionLabelForTmdb(item) {
+      const title = item.title || item.name || 'Untitled';
+      const mediaType = item.media_type === 'tv' ? 'TV Show' : item.media_type === 'movie' ? 'Movie' : 'Title';
+      const date = item.release_date || item.first_air_date || '';
+      const year = date ? date.slice(0, 4) : '';
+      return year ? `${title} (${mediaType}, ${year})` : `${title} (${mediaType})`;
+    }
+
+    async function fetchTmdbResults(query, token) {
+      const params = new URLSearchParams({
+        api_key: TMDB_API_KEY,
+        query,
+        include_adult: 'false',
+        language: 'en-US',
+        page: '1',
+      });
+
+      const response = await fetch(`${TMDB_SEARCH_ENDPOINT}?${params.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${TMDB_READ_TOKEN}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`TMDB request failed (${response.status})`);
       }
+
+      const payload = await response.json();
+      if (token !== pendingSearchToken) {
+        return;
+      }
+
+      const results = (payload.results || []).filter(
+        (item) => item.media_type === 'movie' || item.media_type === 'tv'
+      );
+
+      if (!results.length) {
+        renderSearchStatus('No TMDB matches found. Use custom title below.');
+        return;
+      }
+
+      searchResults.innerHTML = results
+        .slice(0, 10)
+        .map((item) => {
+          const value = (item.title || item.name || '').replace(/"/g, '&quot;');
+          const label = optionLabelForTmdb(item).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          return `<option value="${value}">${label}</option>`;
+        })
+        .join('');
+      searchResults.selectedIndex = 0;
     }
 
     function renderRatings() {
@@ -298,7 +334,30 @@
     });
 
     searchInput.addEventListener('input', () => {
-      renderSearchResults(searchInput.value);
+      const query = searchInput.value.trim();
+      pendingSearchToken += 1;
+      const token = pendingSearchToken;
+
+      if (searchDebounce) {
+        clearTimeout(searchDebounce);
+      }
+
+      if (!query) {
+        renderSearchStatus('Type to search TMDB...');
+        return;
+      }
+
+      renderSearchStatus('Searching TMDB...');
+      searchDebounce = setTimeout(async () => {
+        try {
+          await fetchTmdbResults(query, token);
+        } catch (error) {
+          if (token !== pendingSearchToken) {
+            return;
+          }
+          renderSearchStatus('TMDB search failed. Use custom title below.');
+        }
+      }, 300);
     });
 
     searchResults.addEventListener('change', () => {
@@ -340,12 +399,12 @@
       form.reset();
       scoreInput.value = '2.5';
       renderScoreValue();
-      renderSearchResults('');
+      renderSearchStatus('Type to search TMDB...');
       showMessage(ratingNotice, 'Rating saved to your account.', true);
       renderRatings();
     });
 
-    renderSearchResults('');
+    renderSearchStatus('Type to search TMDB...');
     renderScoreValue();
     renderRatings();
     refreshSignedInStatus();
