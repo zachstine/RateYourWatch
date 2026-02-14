@@ -35,6 +35,7 @@ function hasFirebaseConfig(config) {
 let db;
 let auth;
 let currentUser;
+let selectedItem = null;
 
 export async function saveRating({ tmdbId, title, mediaType, rating, notes, posterUrl }) {
   if (!db || !currentUser) {
@@ -97,23 +98,33 @@ function renderRatingsList(rows) {
 
 function selectedTitleFromUI() {
   const custom = document.getElementById('custom-title');
-  const select = document.getElementById('search-results');
   if (custom && custom.value.trim()) {
     return custom.value.trim();
-  }
-  if (select && select.value) {
-    return select.value;
   }
   return '';
 }
 
-function selectedTmdbIdFromUI() {
+function syncSelectedItemFromDropdown() {
   const select = document.getElementById('search-results');
   if (!select || !select.selectedOptions.length) {
-    return null;
+    selectedItem = null;
+    return;
   }
-  const val = select.selectedOptions[0].getAttribute('data-tmdb-id');
-  return val ? Number(val) : null;
+
+  const option = select.selectedOptions[0];
+  const tmdbId = option.getAttribute('data-tmdb-id');
+  const title = option.value || option.textContent || '';
+  const mediaTypeRaw = option.getAttribute('data-media-type') || '';
+  const posterPath = option.getAttribute('data-poster-path') || '';
+
+  selectedItem = {
+    tmdbId: tmdbId ? Number(tmdbId) : null,
+    title,
+    mediaType: mediaTypeRaw === 'tv' ? 'TV Show' : mediaTypeRaw === 'movie' ? 'Movie' : 'Movie',
+    posterUrl: posterPath ? `https://image.tmdb.org/t/p/w500${posterPath}` : '',
+  };
+
+  console.log('[firebase-init] selected item', selectedItem);
 }
 
 async function wireFirestoreRatePage() {
@@ -121,6 +132,28 @@ async function wireFirestoreRatePage() {
   const notice = document.getElementById('rating-notice');
   if (!form) {
     return;
+  }
+
+  const searchResults = document.getElementById('search-results');
+  if (searchResults) {
+    searchResults.addEventListener('click', syncSelectedItemFromDropdown);
+    searchResults.addEventListener('change', syncSelectedItemFromDropdown);
+  }
+
+  const searchInput = document.getElementById('title-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      selectedItem = null;
+    });
+  }
+
+  const customTitleInput = document.getElementById('custom-title');
+  if (customTitleInput) {
+    customTitleInput.addEventListener('input', () => {
+      if (customTitleInput.value.trim()) {
+        selectedItem = null;
+      }
+    });
   }
 
   const refresh = async () => {
@@ -141,18 +174,19 @@ async function wireFirestoreRatePage() {
 
     try {
       const data = new FormData(form);
-      const title = selectedTitleFromUI();
+      const customTitle = selectedTitleFromUI();
+      const title = customTitle || (selectedItem && selectedItem.title) || '';
       if (!title) {
         throw new Error('Choose a search result or enter a custom title.');
       }
 
       await saveRating({
-        tmdbId: selectedTmdbIdFromUI(),
+        tmdbId: selectedItem ? selectedItem.tmdbId : null,
         title,
-        mediaType: String(data.get('type') || 'Movie'),
+        mediaType: selectedItem ? selectedItem.mediaType : String(data.get('type') || 'Movie'),
         rating: Number(data.get('score') || 0),
         notes: String(data.get('comment') || '').trim(),
-        posterUrl: '',
+        posterUrl: selectedItem ? selectedItem.posterUrl : '',
       });
 
       if (notice) {
@@ -161,6 +195,7 @@ async function wireFirestoreRatePage() {
       }
 
       console.log('[firebase-init] save success via form submit');
+      selectedItem = null;
       await refresh();
     } catch (error) {
       console.error('[firebase-init] save fail', error);
