@@ -139,6 +139,11 @@
   }
 
   function wireAuth() {
+    if (window.__USE_DB_AUTH) {
+      refreshSignedInStatus();
+      return;
+    }
+
     const registerForm = document.getElementById('register-form');
     const loginForm = document.getElementById('login-form');
     const logoutButton = document.getElementById('logout-btn');
@@ -614,7 +619,7 @@
         showMessage(friendsNotice, 'You cannot add yourself.', false);
         return;
       }
-      if (!users[friendName]) {
+      if (!window.__USE_DB_AUTH && !users[friendName]) {
         showMessage(friendsNotice, 'That user does not exist yet. Ask them to create an account first.', false);
         return;
       }

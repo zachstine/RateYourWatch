@@ -18,6 +18,7 @@ import {
   updateDoc,
   deleteDoc,
   setDoc,
+  getDoc,
 } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js';
 
 console.log('[firebase-init] script loaded');
@@ -45,7 +46,7 @@ function hasFirebaseConfig(config) {
 }
 
 function getCurrentAppUsername() {
-  return localStorage.getItem(CURRENT_USER_KEY) || 'guest';
+  return localStorage.getItem(CURRENT_USER_KEY) || '';
 }
 
 function getFriendMap() {
@@ -54,6 +55,142 @@ function getFriendMap() {
   } catch (error) {
     return {};
   }
+}
+
+
+function setCurrentAppUsername(username) {
+  if (username) {
+    localStorage.setItem(CURRENT_USER_KEY, username);
+  } else {
+    localStorage.removeItem(CURRENT_USER_KEY);
+  }
+}
+
+function refreshSignedInPills() {
+  const username = getCurrentAppUsername();
+  document.querySelectorAll('[data-current-user]').forEach((node) => {
+    node.textContent = username ? `Signed in as ${username}` : 'Not signed in';
+  });
+}
+
+async function registerAccount(username, password) {
+  const ref = doc(db, 'accounts', username);
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    throw new Error('Username already exists. Try logging in.');
+  }
+  await setDoc(ref, {
+    appUsername: username,
+    password,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
+
+async function loginAccount(username, password) {
+  const ref = doc(db, 'accounts', username);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) {
+    throw new Error('Account not found.');
+  }
+  const data = snap.data() || {};
+  if (String(data.password || '') !== password) {
+    throw new Error('Invalid password.');
+  }
+}
+
+function wireDatabaseAccountAuth() {
+  const registerForm = document.getElementById('register-form');
+  const loginForm = document.getElementById('login-form');
+  const logoutButton = document.getElementById('logout-btn');
+  const authState = document.getElementById('auth-state');
+  const authNotice = document.getElementById('auth-notice');
+  if (!registerForm && !loginForm && !logoutButton) {
+    return;
+  }
+
+  const render = () => {
+    const username = getCurrentAppUsername();
+    refreshSignedInPills();
+    if (authState) {
+      authState.textContent = username ? `Current account: ${username}` : 'No account signed in.';
+    }
+    if (logoutButton) {
+      logoutButton.disabled = !username;
+    }
+  };
+
+  if (registerForm) {
+    registerForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const formData = new FormData(registerForm);
+      const username = String(formData.get('username') || '').trim();
+      const password = String(formData.get('password') || '').trim();
+      if (!username || !password) {
+        if (authNotice) {
+          authNotice.textContent = 'Username and password are required.';
+          authNotice.className = 'notice bad';
+        }
+        return;
+      }
+      try {
+        await registerAccount(username, password);
+        setCurrentAppUsername(username);
+        await ensureAccountRecord();
+        if (authNotice) {
+          authNotice.textContent = 'Account created and logged in.';
+          authNotice.className = 'notice good';
+        }
+        registerForm.reset();
+        render();
+      } catch (error) {
+        console.error('[firebase-init] register fail', error);
+        if (authNotice) {
+          authNotice.textContent = `Register failed: ${error.message}`;
+          authNotice.className = 'notice bad';
+        }
+      }
+    });
+  }
+
+  if (loginForm) {
+    loginForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const formData = new FormData(loginForm);
+      const username = String(formData.get('username') || '').trim();
+      const password = String(formData.get('password') || '').trim();
+      try {
+        await loginAccount(username, password);
+        setCurrentAppUsername(username);
+        await ensureAccountRecord();
+        if (authNotice) {
+          authNotice.textContent = 'Logged in successfully.';
+          authNotice.className = 'notice good';
+        }
+        loginForm.reset();
+        render();
+      } catch (error) {
+        console.error('[firebase-init] login fail', error);
+        if (authNotice) {
+          authNotice.textContent = `Login failed: ${error.message}`;
+          authNotice.className = 'notice bad';
+        }
+      }
+    });
+  }
+
+  if (logoutButton) {
+    logoutButton.addEventListener('click', () => {
+      setCurrentAppUsername('');
+      if (authNotice) {
+        authNotice.textContent = 'Logged out.';
+        authNotice.className = 'notice good';
+      }
+      render();
+    });
+  }
+
+  render();
 }
 
 async function ensureAccountRecord() {
@@ -439,9 +576,11 @@ async function bootFirebase() {
   });
 
   await ensureAccountRecord();
+  wireDatabaseAccountAuth();
   await wireFirestoreRatePage();
   await wireLibraryPage();
 }
 
 window.__FIREBASE_RATING_MODE__ = true;
+window.__USE_DB_AUTH = true;
 bootFirebase();
