@@ -19,8 +19,8 @@ body {
   color: var(--text);
   min-height: 100vh;
   background: radial-gradient(circle at 10% 20%, #334155 0, transparent 40%),
-              radial-gradient(circle at 90% 10%, #7c2d12 0, transparent 25%),
-              linear-gradient(140deg, var(--bg-1), var(--bg-2));
+    radial-gradient(circle at 90% 10%, #7c2d12 0, transparent 25%),
+    linear-gradient(140deg, var(--bg-1), var(--bg-2));
 }
 
 .site-wrap {
@@ -160,6 +160,16 @@ label {
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
 }
 
+.btn-small {
+  font-size: 0.8rem;
+  padding: 6px 10px;
+}
+
+.btn-danger {
+  border-color: #ef4444;
+  color: #fecaca;
+}
+
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -192,6 +202,14 @@ textarea {
   resize: vertical;
 }
 
+.score-line {
+  display: inline-flex;
+  gap: 6px;
+  align-items: baseline;
+  font-weight: 700;
+  color: #fde68a;
+}
+
 .ticks {
   display: grid;
   grid-template-columns: repeat(11, 1fr);
@@ -208,7 +226,24 @@ textarea {
 .feed-list {
   padding-left: 20px;
   display: grid;
+  gap: 12px;
+}
+
+.comment-row {
+  font-size: 0.9rem;
+}
+
+.item-actions {
+  margin-top: 8px;
+  display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.invite-grid {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0;
 }
 
 .queue {

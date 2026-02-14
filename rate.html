@@ -27,8 +27,16 @@
 
         <form id="rating-form" class="rating-form" action="#">
           <label>
-            Title
-            <input type="text" name="title" placeholder="e.g. Dune: Part Two" required>
+            Search catalog (API-ready)
+            <input id="title-search" type="search" placeholder="Search movies or TV shows...">
+          </label>
+          <label>
+            Search results
+            <select id="search-results" size="5"></select>
+          </label>
+          <label>
+            Custom title (optional override)
+            <input type="text" id="custom-title" name="customTitle" placeholder="Type your own title if not in results">
           </label>
           <label>
             Type
@@ -38,7 +46,11 @@
             </select>
           </label>
           <label>
-            Score: <span id="score-value">2.5</span>/5
+            Score
+            <div class="score-line">
+              <span id="score-value">2.5</span>
+              <span>/ 5</span>
+            </div>
             <input id="score" type="range" name="score" min="0" max="5" step="0.5" value="2.5" list="score-marks">
           </label>
           <datalist id="score-marks">
