@@ -76,6 +76,11 @@ body {
   max-width: 760px;
 }
 
+.two-cards {
+  display: grid;
+  gap: 16px;
+}
+
 .card {
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -89,7 +94,8 @@ h1 {
   font-size: clamp(1.75rem, 3vw, 2.5rem);
 }
 
-h2 {
+h2,
+h3 {
   margin-top: 0;
 }
 
@@ -109,6 +115,25 @@ label {
 
 .muted {
   margin-top: 0;
+}
+
+.status {
+  margin: 8px 0 0;
+  color: #bfdbfe;
+  font-weight: 600;
+}
+
+.notice {
+  min-height: 24px;
+  margin: 8px 0;
+}
+
+.notice.good {
+  color: #86efac;
+}
+
+.notice.bad {
+  color: #fca5a5;
 }
 
 .button-row {
@@ -135,31 +160,49 @@ label {
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
 }
 
-.flow-list {
-  margin: 0;
-  padding-left: 20px;
-  display: grid;
-  gap: 10px;
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.rating-form {
+.rating-form,
+.stacked-form {
   display: grid;
   gap: 14px;
-  margin-top: 18px;
+  margin-top: 16px;
 }
 
-.rating-form label {
+.rating-form label,
+.stacked-form label {
   display: grid;
   gap: 6px;
 }
 
 input,
-select {
+select,
+textarea {
   border-radius: 10px;
   border: 1px solid var(--line);
   background: rgba(2, 6, 23, 0.5);
   color: var(--text);
   padding: 10px;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.ticks {
+  display: grid;
+  grid-template-columns: repeat(11, 1fr);
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-top: -8px;
+  gap: 4px;
+}
+
+.ticks span {
+  text-align: center;
 }
 
 .feed-list {
@@ -195,5 +238,9 @@ select {
 @media (max-width: 860px) {
   .page-grid {
     grid-template-columns: 1fr;
+  }
+
+  .ticks {
+    font-size: 0.62rem;
   }
 }

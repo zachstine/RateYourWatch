@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="site-wrap">
+     <div class="site-wrap">
     <header class="topbar">
       <a class="brand" href="index.html">RateYourWatch</a>
       <nav class="nav-links" aria-label="Main">
@@ -17,27 +17,57 @@
         <a href="next-watch.html">Next Watch</a>
       </nav>
     </header>
-    <main class="page-grid">
+     <main class="page-grid">
       <section class="hero card">
         <p class="eyebrow">Plan, Rate, Share</p>
         <h1>Build your watch club in one place.</h1>
         <p>
-          Get the foundation live first: a landing page, a dedicated rating flow,
-          a friends hub, and a next-watch queue your group can agree on.
+          Create a simple account, log scores for movies and shows, and see what your
+          friends rated.
         </p>
+          <p class="status" data-current-user>Not signed in</p>
+        <div class="button-row">
+          <a class="btn btn-primary" href="rate.html">Start Rating</a>
+          <a class="btn" href="friends.html">See Friends Scores</a>
         </div>
       </section>
+      <aside class="card auth-card">
+        <h2>Simple Account</h2>
+        <p class="muted">Username + password only. Stored locally in your browser for now.</p>
 
-      <aside class="card">
-         <h2>Site Flow</h2>
-        <ol class="flow-list">
-          <li><strong>Home:</strong> Invite friends and jump into the app.</li>
-          <li><strong>Rate:</strong> Log scores for movies and TV shows.</li>
-          <li><strong>Friends:</strong> See activity and compare tastes.</li>
-          <li><strong>Next Watch:</strong> Vote on what to watch next.</li>
-        </ol>
+        <p id="auth-state" class="status">No account signed in.</p>
+        <p id="auth-notice" class="notice"></p>
+
+        <form id="register-form" class="stacked-form" autocomplete="off">
+          <h3>Create account</h3>
+          <label>
+            Username
+            <input type="text" name="username" required>
+          </label>
+          <label>
+            Password
+            <input type="password" name="password" required>
+          </label>
+          <button class="btn btn-primary" type="submit">Create Account</button>
+        </form>
+
+        <form id="login-form" class="stacked-form" autocomplete="off">
+          <h3>Log in</h3>
+          <label>
+            Username
+            <input type="text" name="username" required>
+          </label>
+          <label>
+            Password
+            <input type="password" name="password" required>
+          </label>
+          <button class="btn" type="submit">Log In</button>
+        </form>
+
+        <button id="logout-btn" class="btn" type="button">Log Out</button>
       </aside>
     </main>
-    </div>
+     </div>
+  <script src="app.js"></script>
 </body>
 </html>

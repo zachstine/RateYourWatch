@@ -20,16 +20,14 @@
 
     <main class="single-column">
       <section class="card">
-        <h1>Friends activity</h1>
-        <p class="muted">Starter page for your group feed and shared reactions.</p>
+        <h1>Friends scores</h1>
+        <p class="muted">See ratings saved by other users.</p>
+        <p class="status" data-current-user>Not signed in</p>
 
-        <ul class="feed-list">
-          <li><strong>Alex</strong> rated <em>Andor</em> 9/10</li>
-          <li><strong>Sam</strong> added <em>The Holdovers</em> to Next Watch</li>
-          <li><strong>You</strong> and <strong>Jess</strong> both loved <em>Shōgun</em></li>
-        </ul>
+        <ul id="friends-ratings" class="feed-list"></ul>
       </section>
     </main>
   </div>
+  <script src="app.js"></script>
 </body>
 </html>
