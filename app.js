@@ -5,8 +5,6 @@
   const FRIENDS_KEY = 'ryw_friends';
 
   const TMDB_API_KEY = '32335edf13a294b190f646c64e57bdf4';
-  const TMDB_READ_TOKEN =
-    'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIzMjMzNWVkZjEzYTI5NGIxOTBmNjQ2YzY0ZTU3YmRmNCIsIm5iZiI6MTc3MTA0NTQ4OC40MDcsInN1YiI6IjY5OTAwMjcwNDRjZjg1NzJkMGUyMWRjZCIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.WAAYG_rO6nk7J5srMuP11IaUvr3PB3Ka6Lg-Qo2duEE';
   const TMDB_SEARCH_ENDPOINT = 'https://api.themoviedb.org/3/search/multi';
 
   function readJSON(key, fallback) {
@@ -227,10 +225,7 @@
       });
 
       const response = await fetch(`${TMDB_SEARCH_ENDPOINT}?${params.toString()}`, {
-        headers: {
-          Authorization: `Bearer ${TMDB_READ_TOKEN}`,
-          Accept: 'application/json',
-        },
+        method: 'GET',
       });
 
       if (!response.ok) {
@@ -254,7 +249,7 @@
       searchResults.innerHTML = results
         .slice(0, 10)
         .map((item) => {
-          const value = (item.title || item.name || '').replace(/"/g, '&quot;');
+          const value = item.title || item.name || '';
           const label = optionLabelForTmdb(item).replace(/</g, '&lt;').replace(/>/g, '&gt;');
           return `<option value="${value}">${label}</option>`;
         })
@@ -297,6 +292,33 @@
         : '<li>No community ratings yet.</li>';
     }
 
+
+    async function runTmdbSearch(query) {
+      pendingSearchToken += 1;
+      const token = pendingSearchToken;
+
+      if (searchDebounce) {
+        clearTimeout(searchDebounce);
+      }
+
+      if (!query) {
+        renderSearchStatus('Type to search TMDB...');
+        return;
+      }
+
+      renderSearchStatus('Searching TMDB...');
+      searchDebounce = setTimeout(async () => {
+        try {
+          await fetchTmdbResults(query, token);
+        } catch (error) {
+          if (token !== pendingSearchToken) {
+            return;
+          }
+          renderSearchStatus('TMDB search failed. Use custom title below.');
+        }
+      }, 300);
+    }
+
     function renderScoreValue() {
       scoreValue.textContent = Number(scoreInput.value).toFixed(1);
     }
@@ -334,30 +356,14 @@
     });
 
     searchInput.addEventListener('input', () => {
-      const query = searchInput.value.trim();
-      pendingSearchToken += 1;
-      const token = pendingSearchToken;
+      runTmdbSearch(searchInput.value.trim());
+    });
 
-      if (searchDebounce) {
-        clearTimeout(searchDebounce);
+    searchInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        runTmdbSearch(searchInput.value.trim());
       }
-
-      if (!query) {
-        renderSearchStatus('Type to search TMDB...');
-        return;
-      }
-
-      renderSearchStatus('Searching TMDB...');
-      searchDebounce = setTimeout(async () => {
-        try {
-          await fetchTmdbResults(query, token);
-        } catch (error) {
-          if (token !== pendingSearchToken) {
-            return;
-          }
-          renderSearchStatus('TMDB search failed. Use custom title below.');
-        }
-      }, 300);
     });
 
     searchResults.addEventListener('change', () => {
