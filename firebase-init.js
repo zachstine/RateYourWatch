@@ -273,18 +273,28 @@ async function wireFirestoreRatePage() {
     try {
       const data = new FormData(form);
       const customTitle = selectedTitleFromUI();
-      const title = customTitle || (selectedItem && selectedItem.title) || '';
+      const fallbackSelected = window.__RYW_SELECTED_TMDB_ITEM || null;
+      const effectiveSelected = selectedItem || (fallbackSelected
+        ? {
+            tmdbId: fallbackSelected.id ? Number(fallbackSelected.id) : null,
+            title: fallbackSelected.title || fallbackSelected.name || '',
+            mediaType: fallbackSelected.media_type === 'tv' ? 'TV Show' : 'Movie',
+            posterUrl: fallbackSelected.poster_path ? `https://image.tmdb.org/t/p/w500${fallbackSelected.poster_path}` : '',
+          }
+        : null);
+
+      const title = customTitle || (effectiveSelected && effectiveSelected.title) || '';
       if (!title) {
         throw new Error('Choose a search result or enter a custom title.');
       }
 
       await saveRating({
-        tmdbId: selectedItem ? selectedItem.tmdbId : null,
+        tmdbId: effectiveSelected ? effectiveSelected.tmdbId : null,
         title,
-        mediaType: selectedItem ? selectedItem.mediaType : String(data.get('type') || 'Movie'),
+        mediaType: effectiveSelected ? effectiveSelected.mediaType : String(data.get('type') || 'Movie'),
         rating: Number(data.get('score') || 0),
         notes: String(data.get('comment') || '').trim(),
-        posterUrl: selectedItem ? selectedItem.posterUrl : '',
+        posterUrl: effectiveSelected ? effectiveSelected.posterUrl : '',
       });
 
       if (notice) {

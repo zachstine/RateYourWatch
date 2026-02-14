@@ -319,9 +319,8 @@
       }
 
       renderResultsList(latestResults.slice(0, 10));
-      const first = latestResults[0];
-      setSelectedResult(first);
-      window.dispatchEvent(new CustomEvent('ryw:selected-item-changed', { detail: first }));
+      setSelectedResult(null);
+      window.dispatchEvent(new CustomEvent('ryw:selected-item-changed', { detail: null }));
       renderSearchStatus('Click a title below to select it.');
     }
 
