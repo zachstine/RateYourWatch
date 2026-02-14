@@ -25,9 +25,9 @@
         <p class="status" data-current-user>Not signed in</p>
         <p id="rating-notice" class="notice"></p>
 
-        <form id="rating-form" class="rating-form" action="#">
+        <form id="rating-form" class="rating-form" data-firestore-mode="true" action="#">
           <label>
-            Search catalog
+            Search catalog (API-ready)
             <input id="title-search" type="search" placeholder="Search movies or TV shows...">
           </label>
           <label>
@@ -78,7 +78,7 @@
       </section>
 
       <section class="card">
-        <h2>My saved ratings</h2>
+        <h2>My saved ratings (Firestore)</h2>
         <ul id="my-ratings" class="feed-list"></ul>
       </section>
 
@@ -88,6 +88,7 @@
       </section>
     </main>
   </div>
+  <script type="module" src="firebase-init.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

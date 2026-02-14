@@ -218,6 +218,7 @@
     if (!form) {
       return;
     }
+    const firestoreMode = form.dataset.firestoreMode === 'true';
 
     const scoreInput = document.getElementById('score');
     const scoreValue = document.getElementById('score-value');
@@ -272,7 +273,9 @@
         .map((item) => {
           const value = item.title || item.name || '';
           const label = optionLabelForTmdb(item).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-          return `<option value="${value}">${label}</option>`;
+          const id = item.id || '';
+          const media = item.media_type || '';
+          return `<option value="${value}" data-tmdb-id="${id}" data-media-type="${media}">${label}</option>`;
         })
         .join('');
       searchResults.selectedIndex = 0;
@@ -345,7 +348,8 @@
 
     scoreInput.addEventListener('input', renderScoreValue);
 
-    myRatings.addEventListener('click', (event) => {
+    if (!firestoreMode) {
+      myRatings.addEventListener('click', (event) => {
       const editId = event.target.getAttribute('data-edit-rating');
       const deleteId = event.target.getAttribute('data-delete-rating');
 
@@ -373,7 +377,8 @@
         showMessage(ratingNotice, 'Rating deleted.', true);
         renderRatings();
       }
-    });
+      });
+    }
 
     searchInput.addEventListener('input', () => {
       runTmdbSearch(searchInput.value.trim());
@@ -392,7 +397,8 @@
       }
     });
 
-    form.addEventListener('submit', (event) => {
+    if (!firestoreMode) {
+      form.addEventListener('submit', (event) => {
       event.preventDefault();
       const currentUser = getCurrentUser();
 
@@ -428,11 +434,14 @@
       renderSearchStatus('Type to search TMDB...');
       showMessage(ratingNotice, 'Rating saved to your account.', true);
       renderRatings();
-    });
+      });
+    }
 
     renderSearchStatus('Type to search TMDB...');
     renderScoreValue();
-    renderRatings();
+    if (!firestoreMode) {
+      renderRatings();
+    }
     refreshSignedInStatus();
   }
 
