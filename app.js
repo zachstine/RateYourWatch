@@ -275,7 +275,8 @@
           const label = optionLabelForTmdb(item).replace(/</g, '&lt;').replace(/>/g, '&gt;');
           const id = item.id || '';
           const media = item.media_type || '';
-          return `<option value="${value}" data-tmdb-id="${id}" data-media-type="${media}">${label}</option>`;
+          const posterPath = item.poster_path || '';
+          return `<option value="${value}" data-tmdb-id="${id}" data-media-type="${media}" data-poster-path="${posterPath}">${label}</option>`;
         })
         .join('');
       searchResults.selectedIndex = 0;

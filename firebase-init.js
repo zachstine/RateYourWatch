@@ -14,6 +14,9 @@ import {
   limit,
   getDocs,
   serverTimestamp,
+  doc,
+  updateDoc,
+  deleteDoc,
 } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js';
 
 console.log('[firebase-init] script loaded');
@@ -58,6 +61,22 @@ export async function saveRating({ tmdbId, title, mediaType, rating, notes, post
   return ref.id;
 }
 
+async function updateRating(id, updates) {
+  if (!db || !currentUser) {
+    throw new Error('Firebase not ready or user not signed in yet.');
+  }
+  await updateDoc(doc(db, 'ratings', id), updates);
+  console.log('[firebase-init] edit success', id, updates);
+}
+
+async function removeRating(id) {
+  if (!db || !currentUser) {
+    throw new Error('Firebase not ready or user not signed in yet.');
+  }
+  await deleteDoc(doc(db, 'ratings', id));
+  console.log('[firebase-init] delete success', id);
+}
+
 export async function loadRatings() {
   if (!db || !currentUser) {
     throw new Error('Firebase not ready or user not signed in yet.');
@@ -70,7 +89,7 @@ export async function loadRatings() {
   );
 
   const snapshot = await getDocs(ratingsQuery);
-  const rows = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const rows = snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
   console.log('[firebase-init] load success', rows.length, 'rows');
   return rows;
 }
@@ -91,7 +110,13 @@ function renderRatingsList(rows) {
       const media = row.mediaType || 'Movie';
       const score = Number(row.rating || 0).toFixed(1);
       const notes = row.notes ? ` - ${row.notes}` : '';
-      return `<li><strong>${row.title}</strong> (${media}) - ${score}/5${notes}</li>`;
+      return `<li>
+        <div><strong>${row.title}</strong> (${media}) - ${score}/5${notes}</div>
+        <div class="item-actions">
+          <button class="btn btn-small" type="button" data-edit-id="${row.id}">Edit</button>
+          <button class="btn btn-small btn-danger" type="button" data-delete-id="${row.id}">Delete</button>
+        </div>
+      </li>`;
     })
     .join('');
 }
@@ -130,14 +155,18 @@ function syncSelectedItemFromDropdown() {
 async function wireFirestoreRatePage() {
   const form = document.getElementById('rating-form');
   const notice = document.getElementById('rating-notice');
+  const myRatingsList = document.getElementById('my-ratings');
+
   if (!form) {
     return;
   }
 
   const searchResults = document.getElementById('search-results');
   if (searchResults) {
-    searchResults.addEventListener('click', syncSelectedItemFromDropdown);
     searchResults.addEventListener('change', syncSelectedItemFromDropdown);
+    searchResults.addEventListener('click', () => {
+      requestAnimationFrame(syncSelectedItemFromDropdown);
+    });
   }
 
   const searchInput = document.getElementById('title-search');
@@ -169,11 +198,63 @@ async function wireFirestoreRatePage() {
     }
   };
 
+  if (myRatingsList) {
+    myRatingsList.addEventListener('click', async (event) => {
+      const editId = event.target.getAttribute('data-edit-id');
+      const deleteId = event.target.getAttribute('data-delete-id');
+
+      if (editId) {
+        const updatedNotes = window.prompt('Update your notes/comment:');
+        if (updatedNotes === null) {
+          return;
+        }
+        try {
+          await updateRating(editId, { notes: updatedNotes.trim() });
+          if (notice) {
+            notice.textContent = 'Rating updated.';
+            notice.className = 'notice good';
+          }
+          await refresh();
+        } catch (error) {
+          console.error('[firebase-init] edit fail', error);
+          if (notice) {
+            notice.textContent = `Edit failed: ${error.message}`;
+            notice.className = 'notice bad';
+          }
+        }
+      }
+
+      if (deleteId) {
+        const confirmed = window.confirm('Delete this rating?');
+        if (!confirmed) {
+          return;
+        }
+        try {
+          await removeRating(deleteId);
+          if (notice) {
+            notice.textContent = 'Rating deleted.';
+            notice.className = 'notice good';
+          }
+          await refresh();
+        } catch (error) {
+          console.error('[firebase-init] delete fail', error);
+          if (notice) {
+            notice.textContent = `Delete failed: ${error.message}`;
+            notice.className = 'notice bad';
+          }
+        }
+      }
+    });
+  }
+
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
 
     try {
       const data = new FormData(form);
+      if (!selectedItem) {
+        syncSelectedItemFromDropdown();
+      }
       const customTitle = selectedTitleFromUI();
       const title = customTitle || (selectedItem && selectedItem.title) || '';
       if (!title) {
