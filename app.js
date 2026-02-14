@@ -5,7 +5,7 @@
   const FRIENDS_KEY = 'ryw_friends';
 
   const TMDB_API_KEY = '32335edf13a294b190f646c64e57bdf4';
-  const TMDB_SEARCH_ENDPOINT = 'https://api.themoviedb.org/3/search/multi';
+  const TMDB_BASE = 'https://api.themoviedb.org/3';
 
   function readJSON(key, fallback) {
     try {
@@ -73,11 +73,17 @@
     return map[username] || [];
   }
 
-  function addFriendConnection(username, friendName) {
+  function addFriendConnectionBidirectional(username, friendName) {
     const map = getFriendMap();
-    const existing = new Set(map[username] || []);
-    existing.add(friendName);
-    map[username] = Array.from(existing);
+
+    const userFriends = new Set(map[username] || []);
+    userFriends.add(friendName);
+    map[username] = Array.from(userFriends);
+
+    const friendFriends = new Set(map[friendName] || []);
+    friendFriends.add(username);
+    map[friendName] = Array.from(friendFriends);
+
     writeJSON(FRIENDS_KEY, map);
   }
 
@@ -95,6 +101,41 @@
     document.querySelectorAll('[data-current-user]').forEach((node) => {
       node.textContent = user ? `Signed in as ${user}` : 'Not signed in';
     });
+  }
+
+  function tmdbUrl(path, paramsObj) {
+    const params = new URLSearchParams({ api_key: TMDB_API_KEY, ...paramsObj });
+    return `${TMDB_BASE}${path}?${params.toString()}`;
+  }
+
+  async function tmdbSearchMulti(query) {
+    const response = await fetch(
+      tmdbUrl('/search/multi', {
+        query,
+        include_adult: 'false',
+        language: 'en-US',
+        page: '1',
+      })
+    );
+    if (!response.ok) {
+      throw new Error(`TMDB search failed (${response.status})`);
+    }
+    const payload = await response.json();
+    return payload.results || [];
+  }
+
+  async function tmdbRecommendations(mediaType, id) {
+    const response = await fetch(
+      tmdbUrl(`/${mediaType}/${id}/recommendations`, {
+        language: 'en-US',
+        page: '1',
+      })
+    );
+    if (!response.ok) {
+      throw new Error(`TMDB recommendations failed (${response.status})`);
+    }
+    const payload = await response.json();
+    return payload.results || [];
   }
 
   function wireAuth() {
@@ -201,9 +242,6 @@
     }
 
     function renderSearchStatus(message) {
-      if (!searchResults) {
-        return;
-      }
       searchResults.innerHTML = `<option value="">${message}</option>`;
     }
 
@@ -216,30 +254,13 @@
     }
 
     async function fetchTmdbResults(query, token) {
-      const params = new URLSearchParams({
-        api_key: TMDB_API_KEY,
-        query,
-        include_adult: 'false',
-        language: 'en-US',
-        page: '1',
-      });
+      const results = (await tmdbSearchMulti(query)).filter(
+        (item) => item.media_type === 'movie' || item.media_type === 'tv'
+      );
 
-      const response = await fetch(`${TMDB_SEARCH_ENDPOINT}?${params.toString()}`, {
-        method: 'GET',
-      });
-
-      if (!response.ok) {
-        throw new Error(`TMDB request failed (${response.status})`);
-      }
-
-      const payload = await response.json();
       if (token !== pendingSearchToken) {
         return;
       }
-
-      const results = (payload.results || []).filter(
-        (item) => item.media_type === 'movie' || item.media_type === 'tv'
-      );
 
       if (!results.length) {
         renderSearchStatus('No TMDB matches found. Use custom title below.');
@@ -291,7 +312,6 @@
             .join('')
         : '<li>No community ratings yet.</li>';
     }
-
 
     async function runTmdbSearch(query) {
       pendingSearchToken += 1;
@@ -439,6 +459,7 @@
       return;
     }
 
+    const users = getUsers();
     const friendList = document.getElementById('friend-list');
     const inviteLink = document.getElementById('invite-link');
     const copyInviteBtn = document.getElementById('copy-invite-btn');
@@ -464,7 +485,7 @@
       const code = userInviteCode(currentUser);
       inviteLink.value = `${window.location.origin}${window.location.pathname}?invite=${encodeURIComponent(code)}`;
 
-      const friends = getFriendsForUser(currentUser);
+      const friends = getFriendsForUser(currentUser).filter((name) => Boolean(users[name]));
       friendList.innerHTML = friends.length
         ? friends.map((name) => `<li>${name}</li>`).join('')
         : '<li>No friends added yet.</li>';
@@ -513,10 +534,14 @@
         showMessage(friendsNotice, 'You cannot add yourself.', false);
         return;
       }
+      if (!users[friendName]) {
+        showMessage(friendsNotice, 'That user does not exist yet. Ask them to create an account first.', false);
+        return;
+      }
 
-      addFriendConnection(currentUser, friendName);
+      addFriendConnectionBidirectional(currentUser, friendName);
       acceptInviteForm.reset();
-      showMessage(friendsNotice, `Added ${friendName} as a friend.`, true);
+      showMessage(friendsNotice, `Connected ${currentUser} and ${friendName} as friends.`, true);
       renderFriends();
     });
 
@@ -528,10 +553,148 @@
     renderFriends();
   }
 
+  function wireNextWatchPage() {
+    const list = document.getElementById('recommendations-list');
+    if (!list) {
+      return;
+    }
+
+    const notice = document.getElementById('next-watch-notice');
+    const refreshBtn = document.getElementById('refresh-recommendations');
+
+    function renderRecommendationList(items) {
+      if (!items.length) {
+        list.innerHTML = '<li>No recommendations yet. Add ratings for you and your friends first.</li>';
+        return;
+      }
+      list.innerHTML = items
+        .map(
+          (item) =>
+            `<li>
+              <strong>${item.title}</strong> (${item.mediaType})
+              <div class="comment-row">Why: similar to ${item.reasons.join(', ')}</div>
+              <div class="comment-row">Recommendation score: ${item.score.toFixed(2)}</div>
+            </li>`
+        )
+        .join('');
+    }
+
+    async function resolveSeed(rating) {
+      const query = rating.title;
+      if (!query) {
+        return null;
+      }
+      const expectedType = rating.type === 'TV Show' ? 'tv' : 'movie';
+      const results = await tmdbSearchMulti(query);
+      const media = results.find((item) => item.media_type === expectedType) || results.find((item) => item.media_type === 'movie' || item.media_type === 'tv');
+      if (!media) {
+        return null;
+      }
+      return {
+        id: media.id,
+        mediaType: media.media_type,
+        title: media.title || media.name || rating.title,
+        weight: Number(rating.score) || 0,
+      };
+    }
+
+    async function buildRecommendations() {
+      const currentUser = getCurrentUser();
+      refreshSignedInStatus();
+
+      if (!currentUser) {
+        showMessage(notice, 'Sign in first to generate recommendations.', false);
+        renderRecommendationList([]);
+        return;
+      }
+
+      showMessage(notice, 'Building recommendations from ratings...', true);
+
+      const friends = getFriendsForUser(currentUser);
+      const ratings = getRatings();
+      const candidateRatings = ratings
+        .filter((rating) => rating.username === currentUser || friends.includes(rating.username))
+        .filter((rating) => Number(rating.score) >= 3.5)
+        .slice(0, 8);
+
+      if (!candidateRatings.length) {
+        renderRecommendationList([]);
+        showMessage(notice, 'Need more ratings (3.5+) from you/friends to recommend titles.', false);
+        return;
+      }
+
+      const seenTitles = new Set(
+        ratings
+          .filter((r) => r.username === currentUser || friends.includes(r.username))
+          .map((r) => r.title.toLowerCase())
+      );
+
+      const seedCandidates = [];
+      for (const rating of candidateRatings) {
+        try {
+          const seed = await resolveSeed(rating);
+          if (seed) {
+            seedCandidates.push(seed);
+          }
+        } catch (error) {
+          // Skip failed seed resolution
+        }
+      }
+
+      if (!seedCandidates.length) {
+        renderRecommendationList([]);
+        showMessage(notice, 'Could not map your rated titles to TMDB yet.', false);
+        return;
+      }
+
+      const scoreMap = new Map();
+      for (const seed of seedCandidates.slice(0, 5)) {
+        try {
+          const recs = await tmdbRecommendations(seed.mediaType, seed.id);
+          recs.slice(0, 8).forEach((rec, idx) => {
+            const recTitle = rec.title || rec.name;
+            if (!recTitle || seenTitles.has(recTitle.toLowerCase())) {
+              return;
+            }
+            const key = `${rec.media_type || seed.mediaType}:${rec.id}`;
+            const current = scoreMap.get(key) || {
+              title: recTitle,
+              mediaType: rec.media_type === 'tv' ? 'TV Show' : 'Movie',
+              score: 0,
+              reasons: new Set(),
+            };
+            const rankWeight = 1 / (idx + 1);
+            const popBoost = (Number(rec.popularity) || 0) / 1000;
+            current.score += seed.weight * rankWeight + popBoost;
+            current.reasons.add(seed.title);
+            scoreMap.set(key, current);
+          });
+        } catch (error) {
+          // Continue with remaining seeds
+        }
+      }
+
+      const ranked = Array.from(scoreMap.values())
+        .map((item) => ({ ...item, reasons: Array.from(item.reasons).slice(0, 3) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 10);
+
+      renderRecommendationList(ranked);
+      showMessage(notice, ranked.length ? 'Recommendations updated.' : 'No recommendations returned yet.', Boolean(ranked.length));
+    }
+
+    refreshBtn.addEventListener('click', () => {
+      buildRecommendations();
+    });
+
+    buildRecommendations();
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     wireAuth();
     wireRatingPage();
     wireFriendsPage();
+    wireNextWatchPage();
     refreshSignedInStatus();
   });
 })();

@@ -18,16 +18,18 @@
       </nav>
     </header>
 
-    <main class="single-column">
+    <main class="single-column two-cards">
       <section class="card">
-        <h1>Next Watch queue</h1>
-        <p class="muted">Skeleton for ranked suggestions and friend voting.</p>
+        <h1>Next Watch recommendations</h1>
+        <p class="muted">Based on your ratings and your friends’ ratings.</p>
+        <p class="status" data-current-user>Not signed in</p>
+        <p id="next-watch-notice" class="notice"></p>
+        <button id="refresh-recommendations" class="btn btn-primary" type="button">Refresh Recommendations</button>
+      </section>
 
-        <div class="queue">
-          <div class="queue-item"><span>1. </span>Severance Season 2 <button>Vote</button></div>
-          <div class="queue-item"><span>2. </span>Past Lives <button>Vote</button></div>
-          <div class="queue-item"><span>3. </span>The Bear <button>Vote</button></div>
-        </div>
+      <section class="card">
+        <h2>Recommended for your group</h2>
+        <ul id="recommendations-list" class="feed-list"></ul>
       </section>
     </main>
   </div>
