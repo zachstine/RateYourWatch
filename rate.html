@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RateYourWatch | Rate</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="site-wrap">
+    <header class="topbar">
+      <a class="brand" href="index.html">RateYourWatch</a>
+      <nav class="nav-links" aria-label="Main">
+        <a href="index.html">Home</a>
+        <a class="active" href="rate.html">Rate</a>
+        <a href="friends.html">Friends</a>
+        <a href="next-watch.html">Next Watch</a>
+      </nav>
+    </header>
+
+    <main class="single-column two-cards">
+      <section class="card">
+        <h1>Rate a movie or show</h1>
+        <p class="muted">Scores are saved to your signed-in account.</p>
+        <p class="status" data-current-user>Not signed in</p>
+        <p id="rating-notice" class="notice"></p>
+
+        <form id="rating-form" class="rating-form" action="#">
+          <label>
+            Search catalog (API-ready)
+            <input id="title-search" type="search" placeholder="Search movies or TV shows...">
+          </label>
+          <label>
+            Search results
+            <select id="search-results" size="5"></select>
+          </label>
+          <label>
+            Custom title (optional override)
+            <input type="text" id="custom-title" name="customTitle" placeholder="Type your own title if not in results">
+          </label>
+          <label>
+            Type
+            <select name="type">
+              <option>Movie</option>
+              <option>TV Show</option>
+            </select>
+          </label>
+          <label>
+            Score
+            <div class="score-line">
+              <span id="score-value">2.5</span>
+              <span>/ 5</span>
+            </div>
+            <input id="score" type="range" name="score" min="0" max="5" step="0.5" value="2.5" list="score-marks">
+          </label>
+          <datalist id="score-marks">
+            <option value="0" label="0"></option>
+            <option value="0.5" label="0.5"></option>
+            <option value="1" label="1"></option>
+            <option value="1.5" label="1.5"></option>
+            <option value="2" label="2"></option>
+            <option value="2.5" label="2.5"></option>
+            <option value="3" label="3"></option>
+            <option value="3.5" label="3.5"></option>
+            <option value="4" label="4"></option>
+            <option value="4.5" label="4.5"></option>
+            <option value="5" label="5"></option>
+          </datalist>
+          <div class="ticks" aria-hidden="true">
+            <span>0</span><span>0.5</span><span>1</span><span>1.5</span><span>2</span><span>2.5</span><span>3</span><span>3.5</span><span>4</span><span>4.5</span><span>5</span>
+          </div>
+          <label>
+            Comments (optional)
+            <textarea name="comment" rows="3" placeholder="What stood out to you?"></textarea>
+          </label>
+          <button class="btn btn-primary" type="submit">Save Rating</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>My saved ratings</h2>
+        <ul id="my-ratings" class="feed-list"></ul>
+      </section>
+
+      <section class="card">
+        <h2>Community scores</h2>
+        <ul id="community-ratings" class="feed-list"></ul>
+      </section>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

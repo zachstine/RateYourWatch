@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RateYourWatch | Friends</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="site-wrap">
+    <header class="topbar">
+      <a class="brand" href="index.html">RateYourWatch</a>
+      <nav class="nav-links" aria-label="Main">
+        <a href="index.html">Home</a>
+        <a href="rate.html">Rate</a>
+        <a class="active" href="friends.html">Friends</a>
+        <a href="next-watch.html">Next Watch</a>
+      </nav>
+    </header>
+
+    <main class="single-column two-cards">
+      <section class="card">
+        <h1>Friends</h1>
+        <p class="muted">Invite friends and see connected accounts.</p>
+        <p class="status" data-current-user>Not signed in</p>
+        <p id="friends-notice" class="notice"></p>
+
+        <div class="invite-grid">
+          <label>
+            Your invite link
+            <input id="invite-link" type="text" readonly>
+          </label>
+          <button id="copy-invite-btn" class="btn" type="button">Copy Invite Link</button>
+        </div>
+
+        <form id="accept-invite-form" class="stacked-form" action="#">
+          <label>
+            Add friend with invite link/code
+            <input id="accept-invite-input" type="text" placeholder="Paste invite link or code" required>
+          </label>
+          <button class="btn btn-primary" type="submit">Add Friend</button>
+        </form>
+
+        <h2>Connected friends</h2>
+        <ul id="friend-list" class="feed-list"></ul>
+      </section>
+
+      <section class="card">
+        <h2>Friend scores</h2>
+        <ul id="friends-ratings" class="feed-list"></ul>
+      </section>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

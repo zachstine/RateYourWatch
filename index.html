@@ -3,218 +3,73 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RateYourWatch</title>
-  <style>
-    :root {
-      --bg-1: #0f172a;
-      --bg-2: #1e293b;
-      --accent: #f97316;
-      --accent-2: #f59e0b;
-      --text: #f8fafc;
-      --muted: #cbd5e1;
-      --card: rgba(255, 255, 255, 0.08);
-      --line: rgba(255, 255, 255, 0.18);
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      min-height: 100vh;
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      color: var(--text);
-      background: radial-gradient(circle at 10% 20%, #334155 0, transparent 40%),
-                  radial-gradient(circle at 90% 10%, #7c2d12 0, transparent 25%),
-                  linear-gradient(140deg, var(--bg-1), var(--bg-2));
-    }
-
-    .wrap {
-      max-width: 1040px;
-      margin: 0 auto;
-      padding: 28px 20px 40px;
-    }
-
-    .nav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 64px;
-    }
-
-    .brand {
-      font-size: 1.2rem;
-      font-weight: 700;
-      letter-spacing: 0.3px;
-    }
-
-    .pill {
-      font-size: 0.85rem;
-      padding: 8px 14px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      color: var(--muted);
-      background: var(--card);
-      backdrop-filter: blur(6px);
-    }
-
-    .hero {
-      display: grid;
-      grid-template-columns: 1.2fr 1fr;
-      gap: 28px;
-      align-items: center;
-    }
-
-    h1 {
-      font-size: clamp(2rem, 5vw, 3.6rem);
-      line-height: 1.05;
-      margin-bottom: 16px;
-    }
-
-    .sub {
-      color: var(--muted);
-      font-size: 1.05rem;
-      line-height: 1.6;
-      max-width: 52ch;
-      margin-bottom: 24px;
-    }
-
-    .actions {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-bottom: 22px;
-    }
-
-    .btn {
-      border: 0;
-      padding: 12px 18px;
-      border-radius: 10px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.15s ease, opacity 0.15s ease;
-    }
-
-    .btn:hover {
-      transform: translateY(-1px);
-      opacity: 0.95;
-    }
-
-    .btn-primary {
-      background: linear-gradient(90deg, var(--accent), var(--accent-2));
-      color: #111827;
-    }
-
-    .btn-secondary {
-      background: transparent;
-      border: 1px solid var(--line);
-      color: var(--text);
-    }
-
-    .meta {
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
-      color: var(--muted);
-      font-size: 0.9rem;
-    }
-
-    .card {
-      border: 1px solid var(--line);
-      background: var(--card);
-      border-radius: 16px;
-      padding: 18px;
-      backdrop-filter: blur(10px);
-    }
-
-    .rating-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 14px;
-    }
-
-    .rating-row:last-child {
-      margin-bottom: 0;
-    }
-
-    .title {
-      font-weight: 600;
-      color: #f1f5f9;
-    }
-
-    .stars {
-      color: #fbbf24;
-      letter-spacing: 2px;
-      font-size: 0.95rem;
-      white-space: nowrap;
-    }
-
-    .footer {
-      margin-top: 42px;
-      color: var(--muted);
-      font-size: 0.85rem;
-    }
-
-    @media (max-width: 860px) {
-      .hero {
-        grid-template-columns: 1fr;
-      }
-
-      .nav {
-        margin-bottom: 42px;
-      }
-    }
-  </style>
+  <title>RateYourWatch | Home</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="wrap">
-    <header class="nav">
-      <div class="brand">RateYourWatch</div>
-      <div class="pill">Movies + TV</div>
+  <div class="site-wrap">
+    <header class="topbar">
+      <a class="brand" href="index.html">RateYourWatch</a>
+      <nav class="nav-links" aria-label="Main">
+        <a class="active" href="index.html">Home</a>
+        <a href="rate.html">Rate</a>
+        <a href="friends.html">Friends</a>
+        <a href="next-watch.html">Next Watch</a>
+      </nav>
     </header>
 
-    <main class="hero">
-      <section>
-        <h1>Rate what you watch.<br>Find what to watch next.</h1>
-        <p class="sub">
-          Discover top-rated movies and series from real viewers.
-          Build your watchlist, score every title, and track your taste in one place.
+    <main class="page-grid">
+      <section class="hero card">
+        <p class="eyebrow">Plan, Rate, Share</p>
+        <h1>Build your watch club in one place.</h1>
+        <p>
+          Create a simple account, log scores for movies and shows, and see what your
+          friends rated.
         </p>
-        <div class="actions">
-          <button class="btn btn-primary">Start Rating</button>
-          <button class="btn btn-secondary">Browse Top Picks</button>
-        </div>
-        <div class="meta">
-          <span>10M+ ratings</span>
-          <span>Personalized suggestions</span>
-          <span>No spoilers mode</span>
+        <p class="status" data-current-user>Not signed in</p>
+        <div class="button-row">
+          <a class="btn btn-primary" href="rate.html">Start Rating</a>
+          <a class="btn" href="friends.html">See Friends Scores</a>
         </div>
       </section>
 
-      <aside class="card">
-        <div class="rating-row">
-          <div class="title">The Last Horizon</div>
-          <div class="stars">5/5 - 4.8</div>
-        </div>
-        <div class="rating-row">
-          <div class="title">Neon District</div>
-          <div class="stars">4/5 - 4.2</div>
-        </div>
-        <div class="rating-row">
-          <div class="title">Into the Static</div>
-          <div class="stars">4/5 - 4.1</div>
-        </div>
-        <div class="rating-row">
-          <div class="title">Quiet Orbit</div>
-          <div class="stars">5/5 - 4.9</div>
-        </div>
+      <aside class="card auth-card">
+        <h2>Simple Account</h2>
+        <p class="muted">Username + password only. Stored locally in your browser for now.</p>
+
+        <p id="auth-state" class="status">No account signed in.</p>
+        <p id="auth-notice" class="notice"></p>
+
+        <form id="register-form" class="stacked-form" autocomplete="off">
+          <h3>Create account</h3>
+          <label>
+            Username
+            <input type="text" name="username" required>
+          </label>
+          <label>
+            Password
+            <input type="password" name="password" required>
+          </label>
+          <button class="btn btn-primary" type="submit">Create Account</button>
+        </form>
+
+        <form id="login-form" class="stacked-form" autocomplete="off">
+          <h3>Log in</h3>
+          <label>
+            Username
+            <input type="text" name="username" required>
+          </label>
+          <label>
+            Password
+            <input type="password" name="password" required>
+          </label>
+          <button class="btn" type="submit">Log In</button>
+        </form>
+
+        <button id="logout-btn" class="btn" type="button">Log Out</button>
       </aside>
     </main>
-
-    <p class="footer">Your next favorite show starts here.</p>
   </div>
+  <script src="app.js"></script>
 </body>
 </html>
